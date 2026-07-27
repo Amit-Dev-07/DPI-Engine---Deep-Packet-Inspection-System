@@ -1,0 +1,31 @@
+# Build output
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+dpi_engine
+dpi_engine_check
+packet_analyzer
+
+# Generated capture/output files
+output*.pcap
+filtered*.pcap
+result*.pcap
+
+# Editor and OS noise
+.vscode/
+.idea/
+.vs/
+*.user
+*.suo
+Thumbs.db
+.DS_Store

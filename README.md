@@ -1,7 +1,17 @@
 # DPI Engine - Deep Packet Inspection System
 
 
-This document explains **everything** about this project - from basic networking concepts to the complete code architecture. After reading this, you should understand exactly how packets flow through the system without needing to read the code.
+This document explains the DPI Engine project, from basic networking concepts to the complete packet-processing architecture. It covers how packets move through the system, how applications are classified, how blocking rules are applied, and how to build and test the project.
+
+## Current Project Status
+
+The project has a single official build target, dpi_engine, backed by the modular DPI engine implementation. Older demo entrypoints remain in src/ as reference programs, but they are not part of the official CMake build.
+
+The repository is organized to keep source code separate from generated files:
+- CMakeLists.txt builds the official dpi_engine executable.
+- 	ests/test_packet_components.cpp provides component-level verification through CTest.
+- .gitignore excludes build folders, compiled binaries, generated PCAP outputs, and editor files.
+- 	est_dpi.pcap remains as the included sample capture for local testing.
 
 ---
 
@@ -17,7 +27,8 @@ This document explains **everything** about this project - from basic networking
 8. [How SNI Extraction Works](#8-how-sni-extraction-works)
 9. [How Blocking Works](#9-how-blocking-works)
 10. [Building and Running](#10-building-and-running)
-11. [Understanding the Output](#11-understanding-the-output)
+11. [Repository Hygiene](#11-repository-hygiene)
+12. [Understanding the Output](#12-understanding-the-output)
 
 ---
 
@@ -134,12 +145,12 @@ TLS Client Hello:
                     └─────────────┘
 ```
 
-### Two Versions
+### Build Target and Reference Entrypoints
 
-| Version | File | Use Case |
-|---------|------|----------|
-| Simple (Single-threaded) | `src/main_working.cpp` | Learning, small captures |
-| Multi-threaded | `src/dpi_mt.cpp` | Production, large captures |
+| File | Role |
+|------|------|
+| src/main_dpi.cpp | Official CLI entrypoint used by the dpi_engine CMake target |
+| src/main.cpp, src/main_simple.cpp, src/main_working.cpp, src/dpi_mt.cpp | Reference/demo entrypoints kept for comparison and learning |
 
 ---
 
@@ -866,67 +877,101 @@ Connection to YouTube:
 
 ### Prerequisites
 
-- **macOS/Linux** with C++17 compiler
-- **g++** or **clang++**
+- CMake 3.16 or newer
+- A C++17 compiler such as MSVC, g++, or clang++
 - No external libraries needed!
 
 ### Build Commands
 
-**Simple Version:**
-```bash
-g++ -std=c++17 -O2 -I include -o dpi_simple `
-src/main_working.cpp `
-src/pcap_reader.cpp `
-src/packet_parser.cpp `
-src/sni_extractor.cpp `
-src/types.cpp
-```
+The official executable is dpi_engine. It builds the modular DPI engine from
+src/main_dpi.cpp plus the engine components under src/.
 
-**Multi-threaded Version:**
-```bash
-g++ -std=c++17 -O2 -I include -o dpi_engine `
-src/dpi_mt.cpp `
-src/pcap_reader.cpp `
-src/packet_parser.cpp `
-src/sni_extractor.cpp `
-src/types.cpp
-```
-### Running
-**Decorative character encoding [UTF-8 Encoding] for Windows**
-```bash
-$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new() 
-```
+`Bash
+cmake -S . -B build
+cmake --build build --config Release
+`
 
-**Basic usage:**
-```bash
-./dpi_engine test_dpi.pcap output.pcap
-```
+The CMake target name is dpi_engine.
 
-**With blocking:**
-```bash
-./dpi_engine test_dpi.pcap output.pcap `
---block-app YouTube `
---block-app TikTok `
---block-ip 192.168.1.50 `
---block-domain facebook
-```
+### Running Tests
 
-**Configure threads (multi-threaded only):**
-```bash
-./dpi_engine input.pcap output.pcap --lbs 4 --fps 4
-# Creates 4 LB threads × 4 FP threads = 16 processing threads
-```
+The project includes a small CTest suite for packet parsing, rule matching,
+domain classification, HTTP Host extraction, and DNS query extraction.
+
+`Bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+`
+
+After building, run the executable from the build output directory.
+
+Windows PowerShell:
+`Bash
+.\build\Release\dpi_engine.exe test_dpi.pcap output.pcap
+`
+
+macOS/Linux:
+`Bash
+./build/dpi_engine test_dpi.pcap output.pcap
+`
+
+The older files src/main.cpp, src/main_simple.cpp, src/main_working.cpp,
+and src/dpi_mt.cpp are kept as reference/demo entrypoints. They are not part
+of the official CMake build.
+
+### CLI Usage
+
+For Windows terminals, UTF-8 output can be enabled with:
+
+`powershell
+$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+`
+
+Basic usage:
+`Bash
+dpi_engine test_dpi.pcap output.pcap
+`
+
+With blocking:
+`Bash
+dpi_engine test_dpi.pcap output.pcap \
+  --block-app YouTube \
+  --block-app TikTok \
+  --block-ip 192.168.1.50 \
+  --block-domain facebook
+`
+
+Configure threads:
+`Bash
+dpi_engine input.pcap output.pcap --lbs 4 --fps 4
+# Creates 4 load balancer threads and 4 fast-path workers per load balancer
+`
 
 ### Creating Test Data
 
-```bash
+`Bash
 python3 generate_test_pcap.py
 # Creates test_dpi.pcap with sample traffic
-```
+`
 
 ---
 
-## 11. Understanding the Output
+## 11. Repository Hygiene
+
+The repository should contain source code, documentation, tests, and reusable sample inputs. Generated outputs and local build artifacts should stay out of version control.
+
+Ignored/generated items include:
+- Build/ and CMake-generated files
+- compiled binaries such as dpi_engine and *.exe
+- generated output captures such as output*.pcap
+- editor and OS metadata such as .vscode/, .vs/, and .DS_Store
+
+The included 	est_dpi.pcap file is intentionally kept because it is a sample input used for local testing and demonstrations.
+
+---
+
+## 12. Understanding the Output
 
 ### Sample Output
 
