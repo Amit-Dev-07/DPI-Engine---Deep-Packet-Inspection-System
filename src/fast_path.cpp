@@ -3,6 +3,49 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <string>
+
+namespace {
+
+constexpr size_t kContentWidth = 68;
+
+std::string fitLine(const std::string& text) {
+    if (text.size() >= kContentWidth) {
+        return text.substr(0, kContentWidth);
+    }
+    return text + std::string(kContentWidth - text.size(), ' ');
+}
+
+std::string border() {
+    return "+" + std::string(kContentWidth + 2, '-') + "+\n";
+}
+
+std::string row(const std::string& text) {
+    return "| " + fitLine(text) + " |\n";
+}
+
+std::string centered(const std::string& text) {
+    if (text.size() >= kContentWidth) {
+        return row(text);
+    }
+
+    const size_t left = (kContentWidth - text.size()) / 2;
+    const size_t right = kContentWidth - text.size() - left;
+    return "| " + std::string(left, ' ') + text + std::string(right, ' ') + " |\n";
+}
+
+std::string section(const std::string& title) {
+    return border() + centered(title) + border();
+}
+
+template <typename T>
+std::string metric(const std::string& label, const T& value) {
+    std::ostringstream line;
+    line << "  " << std::left << std::setw(24) << label << " : " << value;
+    return row(line.str());
+}
+
+} // namespace
 
 namespace DPI {
 
@@ -48,13 +91,15 @@ void FastPathProcessor::stop() {
 }
 
 void FastPathProcessor::run() {
-    while (running_) {
+    while (running_ || !input_queue_.empty()) {
         // Get packet from input queue
         auto job_opt = input_queue_.popWithTimeout(std::chrono::milliseconds(100));
         
         if (!job_opt) {
-            // Periodically cleanup stale connections
-            conn_tracker_.cleanupStale(std::chrono::seconds(300));
+            // Periodically cleanup stale connections while the worker is active.
+            if (running_) {
+                conn_tracker_.cleanupStale(std::chrono::seconds(300));
+            }
             continue;
         }
         
@@ -336,10 +381,8 @@ FPManager::AggregatedStats FPManager::getAggregatedStats() const {
     return stats;
 }
 
-std::string FPManager::generateClassificationReport() const {
-    // Aggregate app distribution across all FPs
+FPManager::ClassificationSummary FPManager::getClassificationSummary() const {
     std::unordered_map<AppType, size_t> app_counts;
-    std::unordered_map<std::string, size_t> domain_counts;
     size_t total_classified = 0;
     size_t total_unknown = 0;
     
@@ -352,52 +395,62 @@ std::string FPManager::generateClassificationReport() const {
             } else {
                 total_classified++;
             }
-            
-            if (!conn.sni.empty()) {
-                domain_counts[conn.sni]++;
-            }
         });
     }
-    
-    std::ostringstream ss;
-    ss << "\n╔══════════════════════════════════════════════════════════════╗\n";
-    ss << "║                 APPLICATION CLASSIFICATION REPORT             ║\n";
-    ss << "╠══════════════════════════════════════════════════════════════╣\n";
-    
-    size_t total = total_classified + total_unknown;
-    double classified_pct = total > 0 ? (100.0 * total_classified / total) : 0;
-    double unknown_pct = total > 0 ? (100.0 * total_unknown / total) : 0;
-    
-    ss << "║ Total Connections:    " << std::setw(10) << total << "                           ║\n";
-    ss << "║ Classified:           " << std::setw(10) << total_classified 
-       << " (" << std::fixed << std::setprecision(1) << classified_pct << "%)                  ║\n";
-    ss << "║ Unidentified:         " << std::setw(10) << total_unknown
-       << " (" << std::fixed << std::setprecision(1) << unknown_pct << "%)                  ║\n";
-    
-    ss << "╠══════════════════════════════════════════════════════════════╣\n";
-    ss << "║                    APPLICATION DISTRIBUTION                   ║\n";
-    ss << "╠══════════════════════════════════════════════════════════════╣\n";
-    
-    // Sort apps by count
-    std::vector<std::pair<AppType, size_t>> sorted_apps(
-        app_counts.begin(), app_counts.end());
+
+    std::vector<std::pair<AppType, uint64_t>> sorted_apps;
+    for (const auto& pair : app_counts) {
+        sorted_apps.emplace_back(pair.first, static_cast<uint64_t>(pair.second));
+    }
+
     std::sort(sorted_apps.begin(), sorted_apps.end(),
               [](const auto& a, const auto& b) { return a.second > b.second; });
+
+    return ClassificationSummary{
+        static_cast<uint64_t>(total_classified + total_unknown),
+        static_cast<uint64_t>(total_classified),
+        static_cast<uint64_t>(total_unknown),
+        sorted_apps
+    };
+}
+
+std::string FPManager::generateClassificationReport() const {
+    auto summary = getClassificationSummary();
+    size_t total = static_cast<size_t>(summary.total_connections);
+    size_t total_classified = static_cast<size_t>(summary.classified_connections);
+    size_t total_unknown = static_cast<size_t>(summary.unidentified_connections);
+    double classified_pct = total > 0 ? (100.0 * total_classified / total) : 0;
+    double unknown_pct = total > 0 ? (100.0 * total_unknown / total) : 0;
+
+    std::ostringstream classified_value;
+    classified_value << total_classified << " (" << std::fixed << std::setprecision(1) << classified_pct << "%)";
+
+    std::ostringstream unknown_value;
+    unknown_value << total_unknown << " (" << std::fixed << std::setprecision(1) << unknown_pct << "%)";
+
+    std::ostringstream ss;
+    ss << "\n" << section("APPLICATION CLASSIFICATION REPORT");
+    ss << metric("Total Connections", total);
+    ss << metric("Classified", classified_value.str());
+    ss << metric("Unidentified", unknown_value.str());
+    ss << section("APPLICATION DISTRIBUTION");
     
-    for (const auto& pair : sorted_apps) {
+    for (const auto& pair : summary.app_distribution) {
         double pct = total > 0 ? (100.0 * pair.second / total) : 0;
         
         // Create a simple bar graph
-        int bar_len = static_cast<int>(pct / 5);  // 20 chars max
+        int bar_len = static_cast<int>(pct / 4);  // 25 chars max
         std::string bar(bar_len, '#');
-        
-        ss << "║ " << std::setw(15) << std::left << appTypeToString(pair.first)
-           << std::setw(8) << std::right << pair.second
-           << " " << std::setw(5) << std::fixed << std::setprecision(1) << pct << "% "
-           << std::setw(20) << std::left << bar << "   ║\n";
+
+        std::ostringstream line;
+        line << std::left << std::setw(18) << appTypeToString(pair.first)
+             << std::right << std::setw(8) << pair.second
+             << std::setw(8) << std::fixed << std::setprecision(1) << pct << "%  "
+             << std::left << std::setw(25) << bar;
+        ss << row(line.str());
     }
     
-    ss << "╚══════════════════════════════════════════════════════════════╝\n";
+    ss << border();
     
     return ss.str();
 }

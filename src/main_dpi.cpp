@@ -25,6 +25,7 @@ Options:
   --block-app <app>      Block application, e.g. YouTube or Facebook
   --block-domain <dom>   Block domain; supports simple wildcards like *.facebook.com
   --rules <file>         Load blocking rules from file
+  --json-report <file>   Write dashboard-ready JSON report
   --lbs <n>              Number of load balancer threads (default: 2)
   --fps <n>              Fast path threads per load balancer (default: 2)
   --verbose              Enable verbose output
@@ -33,6 +34,7 @@ Options:
 Examples:
   )" << program << R"( capture.pcap filtered.pcap
   )" << program << R"( capture.pcap filtered.pcap --block-app YouTube
+  )" << program << R"( capture.pcap filtered.pcap --json-report frontend/dashboard/report.json
   )" << program << R"( capture.pcap filtered.pcap --block-ip 192.168.1.50 --block-domain *.tiktok.com
   )" << program << R"( capture.pcap filtered.pcap --rules blocking_rules.txt
 
@@ -89,6 +91,7 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> block_apps;
     std::vector<std::string> block_domains;
     std::string rules_file;
+    std::string json_report_file;
 
     try {
         for (int i = 3; i < argc; i++) {
@@ -106,6 +109,9 @@ int main(int argc, char* argv[]) {
             } else if (arg == "--rules") {
                 if (!requireValue(i, argc, arg)) return 1;
                 rules_file = argv[++i];
+            } else if (arg == "--json-report") {
+                if (!requireValue(i, argc, arg)) return 1;
+                json_report_file = argv[++i];
             } else if (arg == "--lbs") {
                 if (!requireValue(i, argc, arg)) return 1;
                 config.num_load_balancers = parsePositiveInt(argv[++i], arg);
@@ -155,6 +161,14 @@ int main(int argc, char* argv[]) {
     if (!engine.processFile(input_file, output_file)) {
         std::cerr << "Failed to process file\n";
         return 1;
+    }
+
+    if (!json_report_file.empty()) {
+        if (!engine.saveJsonReport(json_report_file, input_file, output_file)) {
+            std::cerr << "Failed to write JSON report: " << json_report_file << "\n";
+            return 1;
+        }
+        std::cout << "JSON report written to: " << json_report_file << "\n";
     }
 
     std::cout << "\nProcessing complete!\n";

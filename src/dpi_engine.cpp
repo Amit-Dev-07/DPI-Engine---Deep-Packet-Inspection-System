@@ -4,6 +4,79 @@
 #include <iomanip>
 #include <chrono>
 #include <cstring>
+#include <string>
+#include <vector>
+
+namespace {
+
+constexpr size_t kContentWidth = 68;
+
+std::string fitLine(const std::string& text) {
+    if (text.size() >= kContentWidth) {
+        return text.substr(0, kContentWidth);
+    }
+    return text + std::string(kContentWidth - text.size(), ' ');
+}
+
+std::string border() {
+    return "+" + std::string(kContentWidth + 2, '-') + "+\n";
+}
+
+std::string row(const std::string& text) {
+    return "| " + fitLine(text) + " |\n";
+}
+
+std::string centered(const std::string& text) {
+    if (text.size() >= kContentWidth) {
+        return row(text);
+    }
+
+    const size_t left = (kContentWidth - text.size()) / 2;
+    const size_t right = kContentWidth - text.size() - left;
+    return "| " + std::string(left, ' ') + text + std::string(right, ' ') + " |\n";
+}
+
+std::string section(const std::string& title) {
+    return border() + centered(title) + border();
+}
+
+std::string jsonEscape(const std::string& value) {
+    std::ostringstream escaped;
+    for (char ch : value) {
+        switch (ch) {
+            case '"': escaped << "\\\""; break;
+            case '\\': escaped << "\\\\"; break;
+            case '\b': escaped << "\\b"; break;
+            case '\f': escaped << "\\f"; break;
+            case '\n': escaped << "\\n"; break;
+            case '\r': escaped << "\\r"; break;
+            case '\t': escaped << "\\t"; break;
+            default:
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    escaped << "\\u"
+                            << std::hex << std::setw(4) << std::setfill('0')
+                            << static_cast<int>(static_cast<unsigned char>(ch))
+                            << std::dec << std::setfill(' ');
+                } else {
+                    escaped << ch;
+                }
+        }
+    }
+    return escaped.str();
+}
+
+std::string jsonString(const std::string& value) {
+    return "\"" + jsonEscape(value) + "\"";
+}
+
+template <typename T>
+std::string metric(const std::string& label, const T& value) {
+    std::ostringstream line;
+    line << "  " << std::left << std::setw(24) << label << " : " << value;
+    return row(line.str());
+}
+
+} // namespace
 
 namespace DPI {
 
@@ -15,15 +88,14 @@ DPIEngine::DPIEngine(const Config& config)
     : config_(config), output_queue_(10000) {
     
     std::cout << "\n";
-    std::cout << "╔══════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║                    DPI ENGINE v1.0                            ║\n";
-    std::cout << "║               Deep Packet Inspection System                   ║\n";
-    std::cout << "╠══════════════════════════════════════════════════════════════╣\n";
-    std::cout << "║ Configuration:                                                ║\n";
-    std::cout << "║   Load Balancers:    " << std::setw(3) << config.num_load_balancers << "                                       ║\n";
-    std::cout << "║   FPs per LB:        " << std::setw(3) << config.fps_per_lb << "                                       ║\n";
-    std::cout << "║   Total FP threads:  " << std::setw(3) << (config.num_load_balancers * config.fps_per_lb) << "                                       ║\n";
-    std::cout << "╚══════════════════════════════════════════════════════════════╝\n";
+    std::cout << border();
+    std::cout << centered("DPI ENGINE v1.0");
+    std::cout << centered("Deep Packet Inspection System");
+    std::cout << border();
+    std::cout << metric("Load Balancers", config.num_load_balancers);
+    std::cout << metric("FPs per LB", config.fps_per_lb);
+    std::cout << metric("Total FP Threads", config.num_load_balancers * config.fps_per_lb);
+    std::cout << border();
 }
 
 DPIEngine::~DPIEngine() {
@@ -113,9 +185,6 @@ void DPIEngine::waitForCompletion() {
         reader_thread_.join();
     }
     
-    // Wait a bit for queues to drain
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    
     // Signal completion
     processing_complete_ = true;
 }
@@ -149,10 +218,7 @@ bool DPIEngine::processFile(const std::string& input_file,
     // Wait for completion
     waitForCompletion();
     
-    // Give some time for final packets to process
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    
-    // Stop all threads
+    // Stop all threads after the reader is done; each stage drains its queue.
     stop();
     
     // Close output file
@@ -284,11 +350,16 @@ PacketJob DPIEngine::createPacketJob(const PacketAnalyzer::RawPacket& raw,
 }
 
 void DPIEngine::outputThreadFunc() {
-    while (running_ || !output_queue_.empty()) {
+    while (true) {
         auto job_opt = output_queue_.popWithTimeout(std::chrono::milliseconds(100));
         
         if (job_opt) {
             writeOutputPacket(*job_opt);
+            continue;
+        }
+
+        if (output_queue_.isShutdown()) {
+            break;
         }
     }
 }
@@ -408,55 +479,51 @@ bool DPIEngine::saveRules(const std::string& filename) {
 std::string DPIEngine::generateReport() const {
     std::ostringstream ss;
     
-    ss << "\n╔══════════════════════════════════════════════════════════════╗\n";
-    ss << "║                    DPI ENGINE STATISTICS                      ║\n";
-    ss << "╠══════════════════════════════════════════════════════════════╣\n";
-    
-    ss << "║ PACKET STATISTICS                                             ║\n";
-    ss << "║   Total Packets:      " << std::setw(12) << stats_.total_packets.load() << "                        ║\n";
-    ss << "║   Total Bytes:        " << std::setw(12) << stats_.total_bytes.load() << "                        ║\n";
-    ss << "║   TCP Packets:        " << std::setw(12) << stats_.tcp_packets.load() << "                        ║\n";
-    ss << "║   UDP Packets:        " << std::setw(12) << stats_.udp_packets.load() << "                        ║\n";
-    
-    ss << "╠══════════════════════════════════════════════════════════════╣\n";
-    ss << "║ FILTERING STATISTICS                                          ║\n";
-    ss << "║   Forwarded:          " << std::setw(12) << stats_.forwarded_packets.load() << "                        ║\n";
-    ss << "║   Dropped/Blocked:    " << std::setw(12) << stats_.dropped_packets.load() << "                        ║\n";
+    ss << "\n" << section("DPI ENGINE STATISTICS");
+
+    ss << centered("PACKET STATISTICS");
+    ss << metric("Total Packets", stats_.total_packets.load());
+    ss << metric("Total Bytes", stats_.total_bytes.load());
+    ss << metric("TCP Packets", stats_.tcp_packets.load());
+    ss << metric("UDP Packets", stats_.udp_packets.load());
+
+    ss << section("FILTERING STATISTICS");
+    ss << metric("Forwarded", stats_.forwarded_packets.load());
+    ss << metric("Dropped/Blocked", stats_.dropped_packets.load());
     
     if (stats_.total_packets > 0) {
         double drop_rate = 100.0 * stats_.dropped_packets.load() / stats_.total_packets.load();
-        ss << "║   Drop Rate:          " << std::setw(11) << std::fixed << std::setprecision(2) << drop_rate << "%                        ║\n";
+        std::ostringstream value;
+        value << std::fixed << std::setprecision(2) << drop_rate << "%";
+        ss << metric("Drop Rate", value.str());
     }
     
     if (lb_manager_) {
         auto lb_stats = lb_manager_->getAggregatedStats();
-        ss << "╠══════════════════════════════════════════════════════════════╣\n";
-        ss << "║ LOAD BALANCER STATISTICS                                      ║\n";
-        ss << "║   LB Received:        " << std::setw(12) << lb_stats.total_received << "                        ║\n";
-        ss << "║   LB Dispatched:      " << std::setw(12) << lb_stats.total_dispatched << "                        ║\n";
+        ss << section("LOAD BALANCER STATISTICS");
+        ss << metric("LB Received", lb_stats.total_received);
+        ss << metric("LB Dispatched", lb_stats.total_dispatched);
     }
     
     if (fp_manager_) {
         auto fp_stats = fp_manager_->getAggregatedStats();
-        ss << "╠══════════════════════════════════════════════════════════════╣\n";
-        ss << "║ FAST PATH STATISTICS                                          ║\n";
-        ss << "║   FP Processed:       " << std::setw(12) << fp_stats.total_processed << "                        ║\n";
-        ss << "║   FP Forwarded:       " << std::setw(12) << fp_stats.total_forwarded << "                        ║\n";
-        ss << "║   FP Dropped:         " << std::setw(12) << fp_stats.total_dropped << "                        ║\n";
-        ss << "║   Active Connections: " << std::setw(12) << fp_stats.total_connections << "                        ║\n";
+        ss << section("FAST PATH STATISTICS");
+        ss << metric("FP Processed", fp_stats.total_processed);
+        ss << metric("FP Forwarded", fp_stats.total_forwarded);
+        ss << metric("FP Dropped", fp_stats.total_dropped);
+        ss << metric("Active Connections", fp_stats.total_connections);
     }
     
     if (rule_manager_) {
         auto rule_stats = rule_manager_->getStats();
-        ss << "╠══════════════════════════════════════════════════════════════╣\n";
-        ss << "║ BLOCKING RULES                                                ║\n";
-        ss << "║   Blocked IPs:        " << std::setw(12) << rule_stats.blocked_ips << "                        ║\n";
-        ss << "║   Blocked Apps:       " << std::setw(12) << rule_stats.blocked_apps << "                        ║\n";
-        ss << "║   Blocked Domains:    " << std::setw(12) << rule_stats.blocked_domains << "                        ║\n";
-        ss << "║   Blocked Ports:      " << std::setw(12) << rule_stats.blocked_ports << "                        ║\n";
+        ss << section("BLOCKING RULES");
+        ss << metric("Blocked IPs", rule_stats.blocked_ips);
+        ss << metric("Blocked Apps", rule_stats.blocked_apps);
+        ss << metric("Blocked Domains", rule_stats.blocked_domains);
+        ss << metric("Blocked Ports", rule_stats.blocked_ports);
     }
     
-    ss << "╚══════════════════════════════════════════════════════════════╝\n";
+    ss << border();
     
     return ss.str();
 }
@@ -466,6 +533,130 @@ std::string DPIEngine::generateClassificationReport() const {
         return fp_manager_->generateClassificationReport();
     }
     return "";
+}
+
+bool DPIEngine::saveJsonReport(const std::string& filename,
+                               const std::string& input_file,
+                               const std::string& output_file) const {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    const uint64_t total_packets = stats_.total_packets.load();
+    const uint64_t dropped_packets = stats_.dropped_packets.load();
+    const double drop_rate = total_packets > 0
+        ? (100.0 * static_cast<double>(dropped_packets) / static_cast<double>(total_packets))
+        : 0.0;
+
+    LBManager::AggregatedStats lb_stats{0, 0};
+    if (lb_manager_) {
+        lb_stats = lb_manager_->getAggregatedStats();
+    }
+
+    FPManager::AggregatedStats fp_stats{0, 0, 0, 0};
+    FPManager::ClassificationSummary classification{0, 0, 0, {}};
+    if (fp_manager_) {
+        fp_stats = fp_manager_->getAggregatedStats();
+        classification = fp_manager_->getClassificationSummary();
+    }
+
+    RuleManager::RuleStats rule_stats{0, 0, 0, 0};
+    std::vector<std::string> blocked_ips;
+    std::vector<std::string> blocked_domains;
+    std::vector<std::string> blocked_apps;
+    std::vector<uint16_t> blocked_ports;
+
+    if (rule_manager_) {
+        rule_stats = rule_manager_->getStats();
+        blocked_ips = rule_manager_->getBlockedIPs();
+        blocked_domains = rule_manager_->getBlockedDomains();
+        blocked_ports = rule_manager_->getBlockedPorts();
+
+        for (AppType app : rule_manager_->getBlockedApps()) {
+            blocked_apps.push_back(appTypeToString(app));
+        }
+    }
+
+    file << std::fixed << std::setprecision(2);
+    file << "{\n";
+    file << "  \"project\": \"DPI Engine\",\n";
+    file << "  \"version\": \"1.0\",\n";
+    file << "  \"input_file\": " << jsonString(input_file) << ",\n";
+    file << "  \"output_file\": " << jsonString(output_file) << ",\n";
+    file << "  \"configuration\": {\n";
+    file << "    \"load_balancers\": " << config_.num_load_balancers << ",\n";
+    file << "    \"fast_paths_per_load_balancer\": " << config_.fps_per_lb << ",\n";
+    file << "    \"total_fast_path_threads\": " << (config_.num_load_balancers * config_.fps_per_lb) << "\n";
+    file << "  },\n";
+    file << "  \"packet_statistics\": {\n";
+    file << "    \"total_packets\": " << total_packets << ",\n";
+    file << "    \"total_bytes\": " << stats_.total_bytes.load() << ",\n";
+    file << "    \"tcp_packets\": " << stats_.tcp_packets.load() << ",\n";
+    file << "    \"udp_packets\": " << stats_.udp_packets.load() << ",\n";
+    file << "    \"other_packets\": " << stats_.other_packets.load() << "\n";
+    file << "  },\n";
+    file << "  \"filtering_statistics\": {\n";
+    file << "    \"forwarded_packets\": " << stats_.forwarded_packets.load() << ",\n";
+    file << "    \"dropped_packets\": " << dropped_packets << ",\n";
+    file << "    \"drop_rate_percent\": " << drop_rate << "\n";
+    file << "  },\n";
+    file << "  \"thread_statistics\": {\n";
+    file << "    \"load_balancer_received\": " << lb_stats.total_received << ",\n";
+    file << "    \"load_balancer_dispatched\": " << lb_stats.total_dispatched << ",\n";
+    file << "    \"fast_path_processed\": " << fp_stats.total_processed << ",\n";
+    file << "    \"fast_path_forwarded\": " << fp_stats.total_forwarded << ",\n";
+    file << "    \"fast_path_dropped\": " << fp_stats.total_dropped << ",\n";
+    file << "    \"active_connections\": " << fp_stats.total_connections << "\n";
+    file << "  },\n";
+    file << "  \"classification\": {\n";
+    file << "    \"total_connections\": " << classification.total_connections << ",\n";
+    file << "    \"classified_connections\": " << classification.classified_connections << ",\n";
+    file << "    \"unidentified_connections\": " << classification.unidentified_connections << ",\n";
+    file << "    \"app_distribution\": [\n";
+    for (size_t i = 0; i < classification.app_distribution.size(); ++i) {
+        const auto& entry = classification.app_distribution[i];
+        const double pct = classification.total_connections > 0
+            ? (100.0 * static_cast<double>(entry.second) / static_cast<double>(classification.total_connections))
+            : 0.0;
+        file << "      {\"app\": " << jsonString(appTypeToString(entry.first))
+             << ", \"count\": " << entry.second
+             << ", \"percentage\": " << pct << "}";
+        file << (i + 1 < classification.app_distribution.size() ? "," : "") << "\n";
+    }
+    file << "    ]\n";
+    file << "  },\n";
+    file << "  \"blocking_rules\": {\n";
+    file << "    \"counts\": {\n";
+    file << "      \"blocked_ips\": " << rule_stats.blocked_ips << ",\n";
+    file << "      \"blocked_apps\": " << rule_stats.blocked_apps << ",\n";
+    file << "      \"blocked_domains\": " << rule_stats.blocked_domains << ",\n";
+    file << "      \"blocked_ports\": " << rule_stats.blocked_ports << "\n";
+    file << "    },\n";
+    file << "    \"ips\": [";
+    for (size_t i = 0; i < blocked_ips.size(); ++i) {
+        file << (i > 0 ? ", " : "") << jsonString(blocked_ips[i]);
+    }
+    file << "],\n";
+    file << "    \"apps\": [";
+    for (size_t i = 0; i < blocked_apps.size(); ++i) {
+        file << (i > 0 ? ", " : "") << jsonString(blocked_apps[i]);
+    }
+    file << "],\n";
+    file << "    \"domains\": [";
+    for (size_t i = 0; i < blocked_domains.size(); ++i) {
+        file << (i > 0 ? ", " : "") << jsonString(blocked_domains[i]);
+    }
+    file << "],\n";
+    file << "    \"ports\": [";
+    for (size_t i = 0; i < blocked_ports.size(); ++i) {
+        file << (i > 0 ? ", " : "") << blocked_ports[i];
+    }
+    file << "]\n";
+    file << "  }\n";
+    file << "}\n";
+
+    return file.good();
 }
 
 const DPIStats& DPIEngine::getStats() const {

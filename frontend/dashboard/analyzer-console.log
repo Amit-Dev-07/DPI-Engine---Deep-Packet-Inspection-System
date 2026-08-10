@@ -1,0 +1,133 @@
+
++----------------------------------------------------------------------+
+|                           DPI ENGINE v1.0                            |
+|                    Deep Packet Inspection System                     |
++----------------------------------------------------------------------+
+|   Load Balancers           : 4                                       |
+|   FPs per LB               : 4                                       |
+|   Total FP Threads         : 16                                      |
++----------------------------------------------------------------------+
+[FPManager] Created 16 fast path processors
+[LBManager] Created 4 load balancers, 4 FPs each
+[DPIEngine] Initialized successfully
+[RuleManager] Blocked app: YouTube
+
+[DPIEngine] Processing: test_dpi.pcap
+[DPIEngine] Output to:  output.pcap
+
+[FP0] Started
+[FP1] Started
+[FP2] Started
+[FP3] Started
+[FP4] Started
+[FP5] Started
+[FP6] Started
+[FP7] Started
+[FP8] Started
+[FP9] Started
+[FP10] Started
+[FP11] Started
+[FP12] Started
+[FP13] Started
+[FP14] Started
+[FP15] Started
+[LB0] Started (serving FP0-FP3)
+[LB1] Started (serving FP4-FP7)
+[LB2] Started (serving FP8-FP11)
+[LB3] Started (serving FP12-FP15)
+[DPIEngine] All threads started
+Opened PCAP file: test_dpi.pcap
+  Version: 2.4
+  Snaplen: 65535 bytes
+  Link type: 1 (Ethernet)
+[Reader] Starting packet processing...
+[FP0] BLOCKED packet: App YouTube
+[Reader] Finished reading 77 packets
+[LB0] Stopped
+[LB1] Stopped
+[LB2] Stopped
+[LB3] Stopped
+[FP0] Stopped (processed 37 packets)
+[FP1] Stopped (processed 0 packets)
+[FP2] Stopped (processed 0 packets)
+[FP3] Stopped (processed 0 packets)
+[FP4] Stopped (processed 0 packets)
+[FP5] Stopped (processed 10 packets)
+[FP6] Stopped (processed 0 packets)
+[FP7] Stopped (processed 0 packets)
+[FP8] Stopped (processed 0 packets)
+[FP9] Stopped (processed 0 packets)
+[FP10] Stopped (processed 16 packets)
+[FP11] Stopped (processed 0 packets)
+[FP12] Stopped (processed 0 packets)
+[FP13] Stopped (processed 0 packets)
+[FP14] Stopped (processed 0 packets)
+[FP15] Stopped (processed 14 packets)
+[DPIEngine] All threads stopped
+
++----------------------------------------------------------------------+
+|                        DPI ENGINE STATISTICS                         |
++----------------------------------------------------------------------+
+|                          PACKET STATISTICS                           |
+|   Total Packets            : 77                                      |
+|   Total Bytes              : 5738                                    |
+|   TCP Packets              : 73                                      |
+|   UDP Packets              : 4                                       |
++----------------------------------------------------------------------+
+|                         FILTERING STATISTICS                         |
++----------------------------------------------------------------------+
+|   Forwarded                : 76                                      |
+|   Dropped/Blocked          : 1                                       |
+|   Drop Rate                : 1.30%                                   |
++----------------------------------------------------------------------+
+|                       LOAD BALANCER STATISTICS                       |
++----------------------------------------------------------------------+
+|   LB Received              : 77                                      |
+|   LB Dispatched            : 77                                      |
++----------------------------------------------------------------------+
+|                         FAST PATH STATISTICS                         |
++----------------------------------------------------------------------+
+|   FP Processed             : 77                                      |
+|   FP Forwarded             : 76                                      |
+|   FP Dropped               : 1                                       |
+|   Active Connections       : 43                                      |
++----------------------------------------------------------------------+
+|                            BLOCKING RULES                            |
++----------------------------------------------------------------------+
+|   Blocked IPs              : 0                                       |
+|   Blocked Apps             : 1                                       |
+|   Blocked Domains          : 0                                       |
+|   Blocked Ports            : 0                                       |
++----------------------------------------------------------------------+
+
++----------------------------------------------------------------------+
+|                  APPLICATION CLASSIFICATION REPORT                   |
++----------------------------------------------------------------------+
+|   Total Connections        : 43                                      |
+|   Classified               : 22 (51.2%)                              |
+|   Unidentified             : 21 (48.8%)                              |
++----------------------------------------------------------------------+
+|                       APPLICATION DISTRIBUTION                       |
++----------------------------------------------------------------------+
+| Unknown                 21    48.8%  ############                    |
+| DNS                      4     9.3%  ##                              |
+| Twitter/X                3     7.0%  #                               |
+| HTTPS                    2     4.7%  #                               |
+| TikTok                   1     2.3%                                  |
+| GitHub                   1     2.3%                                  |
+| Google                   1     2.3%                                  |
+| Spotify                  1     2.3%                                  |
+| Apple                    1     2.3%                                  |
+| Telegram                 1     2.3%                                  |
+| Cloudflare               1     2.3%                                  |
+| Discord                  1     2.3%                                  |
+| Facebook                 1     2.3%                                  |
+| YouTube                  1     2.3%                                  |
+| Amazon                   1     2.3%                                  |
+| Instagram                1     2.3%                                  |
+| Zoom                     1     2.3%                                  |
++----------------------------------------------------------------------+
+JSON report written to: frontend/dashboard/report.json
+
+Processing complete!
+Output written to: output.pcap

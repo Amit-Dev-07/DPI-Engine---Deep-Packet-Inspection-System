@@ -117,6 +117,11 @@ public:
     
     // Generate classification report (app distribution)
     std::string generateClassificationReport() const;
+
+    // Save a machine-readable JSON report for dashboards and integrations
+    bool saveJsonReport(const std::string& filename,
+                        const std::string& input_file,
+                        const std::string& output_file) const;
     
     // Get real-time statistics
     const DPIStats& getStats() const;

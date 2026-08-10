@@ -1,0 +1,67 @@
+{
+  "project": "DPI Engine",
+  "version": "1.0",
+  "input_file": "test_dpi.pcap",
+  "output_file": "output.pcap",
+  "configuration": {
+    "load_balancers": 4,
+    "fast_paths_per_load_balancer": 4,
+    "total_fast_path_threads": 16
+  },
+  "packet_statistics": {
+    "total_packets": 77,
+    "total_bytes": 5738,
+    "tcp_packets": 73,
+    "udp_packets": 4,
+    "other_packets": 0
+  },
+  "filtering_statistics": {
+    "forwarded_packets": 76,
+    "dropped_packets": 1,
+    "drop_rate_percent": 1.30
+  },
+  "thread_statistics": {
+    "load_balancer_received": 77,
+    "load_balancer_dispatched": 77,
+    "fast_path_processed": 77,
+    "fast_path_forwarded": 76,
+    "fast_path_dropped": 1,
+    "active_connections": 43
+  },
+  "classification": {
+    "total_connections": 43,
+    "classified_connections": 22,
+    "unidentified_connections": 21,
+    "app_distribution": [
+      {"app": "Unknown", "count": 21, "percentage": 48.84},
+      {"app": "DNS", "count": 4, "percentage": 9.30},
+      {"app": "Twitter/X", "count": 3, "percentage": 6.98},
+      {"app": "HTTPS", "count": 2, "percentage": 4.65},
+      {"app": "TikTok", "count": 1, "percentage": 2.33},
+      {"app": "GitHub", "count": 1, "percentage": 2.33},
+      {"app": "Google", "count": 1, "percentage": 2.33},
+      {"app": "Spotify", "count": 1, "percentage": 2.33},
+      {"app": "Apple", "count": 1, "percentage": 2.33},
+      {"app": "Telegram", "count": 1, "percentage": 2.33},
+      {"app": "Cloudflare", "count": 1, "percentage": 2.33},
+      {"app": "Discord", "count": 1, "percentage": 2.33},
+      {"app": "Facebook", "count": 1, "percentage": 2.33},
+      {"app": "YouTube", "count": 1, "percentage": 2.33},
+      {"app": "Amazon", "count": 1, "percentage": 2.33},
+      {"app": "Instagram", "count": 1, "percentage": 2.33},
+      {"app": "Zoom", "count": 1, "percentage": 2.33}
+    ]
+  },
+  "blocking_rules": {
+    "counts": {
+      "blocked_ips": 0,
+      "blocked_apps": 1,
+      "blocked_domains": 0,
+      "blocked_ports": 0
+    },
+    "ips": [],
+    "apps": ["YouTube"],
+    "domains": [],
+    "ports": []
+  }
+}

@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
+find_package(Threads REQUIRED)
 
 set(PROJECT_HEADERS_DIR ${CMAKE_SOURCE_DIR}/include)
 
@@ -29,6 +30,7 @@ set(DPI_ENGINE_SOURCES
 
 add_executable(dpi_engine ${DPI_ENGINE_SOURCES})
 target_include_directories(dpi_engine PRIVATE ${PROJECT_HEADERS_DIR})
+target_link_libraries(dpi_engine PRIVATE Threads::Threads)
 
 if (MSVC)
     target_compile_options(dpi_engine PRIVATE /W4)
@@ -46,6 +48,7 @@ if (BUILD_TESTING)
         src/packet_parser.cpp
     )
     target_include_directories(packet_component_tests PRIVATE ${PROJECT_HEADERS_DIR})
+    target_link_libraries(packet_component_tests PRIVATE Threads::Threads)
 
     if (MSVC)
         target_compile_options(packet_component_tests PRIVATE /W4)

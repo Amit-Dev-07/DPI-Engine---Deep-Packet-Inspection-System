@@ -886,35 +886,48 @@ Connection to YouTube:
 The official executable is dpi_engine. It builds the modular DPI engine from
 src/main_dpi.cpp plus the engine components under src/.
 
-`Bash
+```powershell
 cmake -S . -B build
 cmake --build build --config Release
-`
+```
 
 The CMake target name is dpi_engine.
+
+If CMake is not available, the executable can also be rebuilt directly with
+g++ from the project root:
+
+```powershell
+g++ -std=c++17 -pthread -Wall -Wextra -pedantic -I include -o dpi_engine.exe src\main_dpi.cpp src\dpi_engine.cpp src\load_balancer.cpp src\fast_path.cpp src\connection_tracker.cpp src\rule_manager.cpp src\sni_extractor.cpp src\types.cpp src\pcap_reader.cpp src\packet_parser.cpp
+```
 
 ### Running Tests
 
 The project includes a small CTest suite for packet parsing, rule matching,
 domain classification, HTTP Host extraction, and DNS query extraction.
 
-`Bash
+```powershell
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
-`
+```
 
 After building, run the executable from the build output directory.
 
 Windows PowerShell:
-`Bash
+```powershell
 .\build\Release\dpi_engine.exe test_dpi.pcap output.pcap
-`
+```
+
+If the direct g++ command was used, run the executable from the project root:
+
+```powershell
+.\dpi_engine.exe test_dpi.pcap output.pcap
+```
 
 macOS/Linux:
-`Bash
+```Bash
 ./build/dpi_engine test_dpi.pcap output.pcap
-`
+```
 
 The older files src/main.cpp, src/main_simple.cpp, src/main_working.cpp,
 and src/dpi_mt.cpp are kept as reference/demo entrypoints. They are not part
@@ -922,38 +935,85 @@ of the official CMake build.
 
 ### CLI Usage
 
-For Windows terminals, UTF-8 output can be enabled with:
-
-`powershell
-$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-`
-
 Basic usage:
-`Bash
-dpi_engine test_dpi.pcap output.pcap
-`
+
+```powershell
+.\dpi_engine.exe test_dpi.pcap output.pcap
+```
+
+```bash
+./dpi_engine test_dpi.pcap output.pcap
+```
 
 With blocking:
-`Bash
-dpi_engine test_dpi.pcap output.pcap \
-  --block-app YouTube \
-  --block-app TikTok \
-  --block-ip 192.168.1.50 \
-  --block-domain facebook
-`
+
+```powershell
+.\dpi_engine.exe test_dpi.pcap output.pcap --block-app YouTube --block-app TikTok --block-ip 192.168.1.50 --block-domain facebook
+```
+
+```bash
+./dpi_engine test_dpi.pcap output.pcap --block-app YouTube --block-app TikTok --block-ip 192.168.1.50 --block-domain facebook
+```
+
+Run from the CMake build output:
+
+```powershell
+.\build\Release\dpi_engine.exe test_dpi.pcap output.pcap
+```
+
+```bash
+./build/dpi_engine test_dpi.pcap output.pcap
+```
 
 Configure threads:
-`Bash
-dpi_engine input.pcap output.pcap --lbs 4 --fps 4
-# Creates 4 load balancer threads and 4 fast-path workers per load balancer
-`
+
+```powershell
+.\dpi_engine.exe input.pcap output.pcap --lbs 4 --fps 4
+```
+
+```bash
+./dpi_engine input.pcap output.pcap --lbs 4 --fps 4
+```
+
+This creates 4 load balancer threads and 4 fast-path workers per load balancer.
+
+### JSON Report and Web Dashboard
+
+The analyzer can export a dashboard-ready JSON report with `--json-report`.
+
+Windows PowerShell:
+
+```powershell
+.\dpi_engine.exe test_dpi.pcap output.pcap --block-app YouTube --block-app TikTok --block-ip 192.168.1.50 --block-domain facebook --json-report frontend\dashboard\report.json
+```
+
+macOS/Linux:
+
+```bash
+./dpi_engine test_dpi.pcap output.pcap --block-app YouTube --block-app TikTok --block-ip 192.168.1.50 --block-domain facebook --json-report frontend/dashboard/report.json
+```
+
+Open the React dashboard from `frontend/dashboard`:
+
+```powershell
+python -m http.server 8000
+```
+
+Then visit:
+
+```text
+http://localhost:8000
+```
+
+The dashboard loads `report.json` automatically when served from the same folder.
+It also includes an upload button for manually loading any generated JSON report.
 
 ### Creating Test Data
 
-`Bash
+```Bash
 python3 generate_test_pcap.py
 # Creates test_dpi.pcap with sample traffic
-`
+```
 
 ---
 

@@ -47,7 +47,7 @@ void LoadBalancer::stop() {
 }
 
 void LoadBalancer::run() {
-    while (running_) {
+    while (running_ || !input_queue_.empty()) {
         // Get packet from input queue (with timeout to check running flag)
         auto job_opt = input_queue_.popWithTimeout(std::chrono::milliseconds(100));
         

@@ -10,6 +10,8 @@
 #include <atomic>
 #include <memory>
 #include <functional>
+#include <utility>
+#include <vector>
 
 namespace DPI {
 
@@ -168,8 +170,17 @@ public:
         uint64_t total_dropped;
         uint64_t total_connections;
     };
+
+    struct ClassificationSummary {
+        uint64_t total_connections;
+        uint64_t classified_connections;
+        uint64_t unidentified_connections;
+        std::vector<std::pair<AppType, uint64_t>> app_distribution;
+    };
     
     AggregatedStats getAggregatedStats() const;
+
+    ClassificationSummary getClassificationSummary() const;
     
     // Generate classification report
     std::string generateClassificationReport() const;
