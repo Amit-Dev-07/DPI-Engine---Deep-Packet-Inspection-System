@@ -1,6 +1,8 @@
 const { useEffect, useMemo, useState } = React;
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = window.location.port === "8000"
+  ? "http://localhost:8080/api"
+  : `${window.location.origin}/api`;
 
 const analysisPresets = [
   {
@@ -316,32 +318,32 @@ function App() {
             React.createElement(
               "div",
               null,
-              React.createElement("span", { className: "active-label" }, "Selected mode: "),
+              React.createElement("span", { className: "active-label" }, "Selected mode"),
               React.createElement("strong", null, activePreset.name),
               React.createElement("p", null, activePreset.description)
             ),
             React.createElement(
               "div",
               { className: "active-metrics" },
-              React.createElement("span", null, `Apps: ${joinOrNone(activePreset.request.blockApps)} , `),
-              React.createElement("span", null, `IPs: ${joinOrNone(activePreset.request.blockIps)} , `),
-              React.createElement("span", null, `Domains: ${joinOrNone(activePreset.request.blockDomains)} , `),
+              React.createElement("span", null, `Apps: ${joinOrNone(activePreset.request.blockApps)}`),
+              React.createElement("span", null, `IPs: ${joinOrNone(activePreset.request.blockIps)}`),
+              React.createElement("span", null, `Domains: ${joinOrNone(activePreset.request.blockDomains)}`),
               React.createElement("span", null, `Threads: ${activePreset.request.lbs} LB x ${activePreset.request.fps} FP`)
             )
           )
         : React.createElement(
             "div",
             { className: "active-run muted-run" },
-            React.createElement("span", { className: "active-label" }, "Selected mode: "),
+            React.createElement("span", { className: "active-label" }, "Selected mode"),
             React.createElement("strong", null, "No button run yet"),
             React.createElement("p", null, "Click any preset to run the backend and update this panel.")
           ),
       React.createElement(
         "div",
         { className: "result-strip" },
-        React.createElement("span", null, `Blocked packets: ${formatNumber(report.filtering_statistics?.dropped_packets)}  , `),
-        React.createElement("span", null, `Drop rate: ${formatPercent(report.filtering_statistics?.drop_rate_percent)}  , `),
-        React.createElement("span", null, `Load balancing: ${formatNumber(report.configuration?.load_balancers)} x ${formatNumber(report.configuration?.fast_paths_per_load_balancer)}  , `),
+        React.createElement("span", null, `Blocked packets: ${formatNumber(report.filtering_statistics?.dropped_packets)}`),
+        React.createElement("span", null, `Drop rate: ${formatPercent(report.filtering_statistics?.drop_rate_percent)}`),
+        React.createElement("span", null, `Load balancing: ${formatNumber(report.configuration?.load_balancers)} x ${formatNumber(report.configuration?.fast_paths_per_load_balancer)}`),
         React.createElement("span", null, `Rules active: ${blockedRuleValues.length}`)
       ),
       lastCommand.length > 0

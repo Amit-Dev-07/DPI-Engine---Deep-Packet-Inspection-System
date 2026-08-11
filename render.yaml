@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: packet-analyzer
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: docker

@@ -41,8 +41,8 @@ Opened PCAP file: test_dpi.pcap
   Snaplen: 65535 bytes
   Link type: 1 (Ethernet)
 [Reader] Starting packet processing...
-[FP0] BLOCKED packet: App YouTube
 [Reader] Finished reading 77 packets
+[FP0] BLOCKED packet: App YouTube
 [LB0] Stopped
 [LB1] Stopped
 [LB2] Stopped
