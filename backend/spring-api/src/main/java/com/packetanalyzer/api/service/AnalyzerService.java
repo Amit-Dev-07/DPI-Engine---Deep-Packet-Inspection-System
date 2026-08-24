@@ -41,8 +41,13 @@ public class AnalyzerService {
 
     public AnalysisResponse runAnalysis(AnalysisRequest request) throws IOException, InterruptedException {
         List<String> command = buildCommand(request);
-        Path logFile = projectRoot.resolve("frontend/dashboard/analyzer-console.log").normalize();
-        Files.createDirectories(logFile.getParent());
+        Path outputFile = resolveConfiguredPath(outputPcap);
+        Path reportFile = resolveConfiguredPath(reportJson);
+        Path logFile = resolveConfiguredPath("/tmp/packet-analyzer/analyzer-console.log");
+
+        createParentDirectory(outputFile);
+        createParentDirectory(reportFile);
+        createParentDirectory(logFile);
 
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         processBuilder.directory(projectRoot.toFile());
@@ -74,7 +79,7 @@ public class AnalyzerService {
 
     private List<String> buildCommand(AnalysisRequest request) {
         List<String> command = new ArrayList<>();
-        command.add(projectRoot.resolve(executable).toString());
+        command.add(resolveConfiguredPath(executable).toString());
         command.add(inputPcap);
         command.add(outputPcap);
 
@@ -104,10 +109,25 @@ public class AnalyzerService {
     }
 
     private JsonNode readReport() throws IOException {
-        Path reportPath = projectRoot.resolve(reportJson).normalize();
+        Path reportPath = resolveConfiguredPath(reportJson);
         if (!Files.exists(reportPath)) {
             throw new IOException("JSON report not found: " + reportPath);
         }
         return objectMapper.readTree(Files.readString(reportPath));
+    }
+
+    private Path resolveConfiguredPath(String configuredPath) {
+        Path path = Path.of(configuredPath);
+        if (path.isAbsolute()) {
+            return path.normalize();
+        }
+        return projectRoot.resolve(path).normalize();
+    }
+
+    private void createParentDirectory(Path filePath) throws IOException {
+        Path parent = filePath.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
     }
 }

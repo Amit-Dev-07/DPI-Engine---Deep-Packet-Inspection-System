@@ -48,6 +48,7 @@ COPY --from=java-build /workspace/target/spring-api-1.0.0.jar ./app.jar
 COPY test_dpi.pcap ./test_dpi.pcap
 
 RUN mkdir -p /app/frontend/dashboard /tmp/packet-analyzer
+RUN chmod +x /app/dpi_engine
 
 ENV SPRING_PROFILES_ACTIVE=docker
 ENV PORT=8080
