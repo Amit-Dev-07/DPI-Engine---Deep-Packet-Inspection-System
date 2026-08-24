@@ -1,5 +1,5 @@
-com\packetanalyzer\api\dto\AnalysisRequest.class
-com\packetanalyzer\api\dto\AnalysisResponse.class
 com\packetanalyzer\api\controller\AnalysisController.class
 com\packetanalyzer\api\service\AnalyzerService.class
 com\packetanalyzer\api\PacketAnalyzerApplication.class
+com\packetanalyzer\api\dto\AnalysisRequest.class
+com\packetanalyzer\api\dto\AnalysisResponse.class
